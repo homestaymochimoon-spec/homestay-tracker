@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#3d4a4f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Mochi & Moon — Booking Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--ink:#263238;--muted:#718096;--paper:#fffdf9;--line:#eadfd3;--accent:#b88a72;--soft:#f4ebe4;--green:#dcefe3;--yellow:#fff0c7;--red:#f8dddd;--dark:#3d4a4f;--blue:#e0efff}
+*{box-sizing:border-box}html,body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f7f3ee;color:var(--ink)}body{padding-bottom:env(safe-area-inset-bottom)}
+header{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,#efe1d5,#fbf8f3);padding:16px 16px 10px;border-bottom:1px solid var(--line)}
+.brand{max-width:1180px;margin:auto;display:flex;justify-content:space-between;gap:12px;align-items:center}.brand h1{margin:0;font-family:Georgia,serif;font-size:27px}.brand p{margin:3px 0 0;color:var(--muted);font-size:13px}.syncpill{font-size:12px;padding:7px 10px;border-radius:999px;background:#fff;border:1px solid var(--line);white-space:nowrap}
+nav{max-width:1180px;margin:12px auto 0;display:flex;gap:7px;overflow:auto;padding-bottom:2px}.tab{border:0;background:white;padding:9px 13px;border-radius:11px;cursor:pointer;color:var(--dark);white-space:nowrap}.tab.active{background:var(--dark);color:white}
+main{max-width:1180px;margin:20px auto;padding:0 14px}.view{display:none}.view.active{display:block}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{background:white;border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 2px 10px #00000006}.label{font-size:12px;color:var(--muted)}.value{font-size:25px;font-weight:700;margin-top:5px}
+.toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:16px 0;flex-wrap:wrap}.toolbar h2{margin:0}.toolbar p{margin:5px 0 0;color:var(--muted)}.actionsrow{display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:0;border-radius:12px;padding:11px 15px;background:var(--dark);color:#fff;cursor:pointer;font-weight:600}.btn.secondary{background:var(--soft);color:var(--ink)}.btn.danger{background:#9c4d4d}.btn.blue{background:#486a8a}.btn:disabled{opacity:.55;cursor:not-allowed}
+input,select,textarea{padding:11px;border:1px solid var(--line);border-radius:10px;background:white;width:100%;font:inherit}textarea{min-height:80px;resize:vertical}label{display:block;font-size:13px;margin-bottom:6px;color:#59666d}
+.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:14px;background:white}table{width:100%;border-collapse:collapse}th,td{padding:11px;border-bottom:1px solid #f0e8e1;text-align:left;white-space:nowrap;font-size:14px}th{background:#faf6f1;color:#65727a;position:sticky;top:0}.badge{display:inline-block;padding:5px 9px;border-radius:999px;font-size:12px}.confirmed{background:var(--green)}.pending{background:var(--yellow)}.cancelled{background:var(--red)}.closed{background:#e6e8e9}.paid{background:var(--green)}.notpaid{background:var(--red)}
+.calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}.day{background:white;border:1px solid var(--line);min-height:100px;border-radius:10px;padding:8px;overflow:hidden}.day .num{font-weight:700}.booking{font-size:11px;margin-top:5px;padding:5px;border-radius:7px;background:var(--green);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.booking.pending{background:var(--yellow)}.booking.closed{background:#e6e8e9}
+.formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:13px}.full{grid-column:1/-1}.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:16px;z-index:100}.modal.show{display:flex}.modalbox{background:#fffdf9;border-radius:18px;padding:20px;max-width:680px;width:100%;max-height:92vh;overflow:auto}.modalbox h2{margin-top:0}.modalactions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}.notice{padding:12px 14px;border-radius:12px;background:var(--blue);font-size:14px;line-height:1.45}.notice.warn{background:var(--yellow)}.notice.ok{background:var(--green)}.notice.err{background:var(--red)}
+.searchrow{display:grid;grid-template-columns:1fr 190px;gap:9px;margin-bottom:12px}.settingsgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.small{font-size:12px;color:var(--muted);line-height:1.45}.hidden{display:none!important}
+@media(max-width:800px){.cards{grid-template-columns:repeat(2,1fr)}.formgrid,.settingsgrid{grid-template-columns:1fr}.calendar{gap:3px}.day{min-height:78px;padding:5px}.booking{font-size:9px}.searchrow{grid-template-columns:1fr}.brand h1{font-size:23px}}
+@media(max-width:480px){main{padding:0 10px}.cards{grid-template-columns:1fr 1fr}.value{font-size:21px}.card{padding:13px}.day{min-height:67px}.btn{padding:10px 12px}.syncpill{max-width:120px;overflow:hidden;text-overflow:ellipsis}.modal{padding:8px}.modalbox{border-radius:14px;padding:15px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div><h1>🌙 Mochi & Moon</h1><p>Homestay Booking & Payment Manager</p></div><div id="syncPill" class="syncpill">Local mode</div></div>
+  <nav>
+    <button class="tab active" data-view="dashboard">Dashboard</button><button class="tab" data-view="calendar">Calendar</button><button class="tab" data-view="bookings">Bookings</button><button class="tab" data-view="payments">Payments</button><button class="tab" data-view="settings">Settings</button>
+  </nav>
+</header>
+<main>
+<section id="dashboard" class="view active">
+  <div class="toolbar"><div><h2>Dashboard</h2><p id="dashMonth"></p></div><button class="btn" onclick="openModal()">+ Add Booking</button></div>
+  <div class="cards">
+    <div class="card"><div class="label">Confirmed bookings</div><div class="value" id="confirmedCount">0</div></div>
+    <div class="card"><div class="label">Revenue</div><div class="value" id="revenue">RM0</div></div>
+    <div class="card"><div class="label">Outstanding balance</div><div class="value" id="outstanding">RM0</div></div>
+    <div class="card"><div class="label">Pending bookings</div><div class="value" id="pendingCount">0</div></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>Upcoming stays</h3><div id="upcoming"></div></div>
+</section>
+<section id="calendar" class="view">
+  <div class="toolbar"><h2 id="calTitle"></h2><div class="actionsrow"><button class="btn secondary" onclick="changeMonth(-1)">‹</button><button class="btn secondary" onclick="goToday()">Today</button><button class="btn secondary" onclick="changeMonth(1)">›</button></div></div>
+  <div class="calendar" id="calHead"></div><div class="calendar" id="calendarGrid"></div>
+</section>
+<section id="bookings" class="view">
+  <div class="toolbar"><h2>All Bookings</h2><div class="actionsrow"><button class="btn secondary" onclick="exportCSV()">Export CSV</button><button class="btn" onclick="openModal()">+ Add Booking</button></div></div>
+  <div class="searchrow"><input id="search" placeholder="Search guest, phone or source" oninput="renderBookings()"><select id="statusFilter" onchange="renderBookings()"><option value="">All statuses</option><option>Confirmed</option><option>Awaiting Confirmation</option><option>Cancelled</option><option>Closed</option></select></div>
+  <div class="tablewrap"><table><thead><tr><th>Guest</th><th>Check-in</th><th>Check-out</th><th>Pax</th><th>Source</th><th>Total</th><th>Balance</th><th>Status</th><th></th></tr></thead><tbody id="bookingRows"></tbody></table></div>
+</section>
+<section id="payments" class="view">
+  <div class="toolbar"><h2>Payments</h2></div>
+  <div class="tablewrap"><table><thead><tr><th>Guest</th><th>Total</th><th>Deposit</th><th>Balance</th><th>Payment status</th></tr></thead><tbody id="paymentRows"></tbody></table></div>
+</section>
+<section id="settings" class="view">
+  <div class="card">
+    <h2>Phone & Cloud Setup</h2>
+    <div id="cloudMsg" class="notice">This app works immediately in Local Mode. For iPhone + computer sync, connect your free Supabase project below.</div>
+    <div class="settingsgrid" style="margin-top:14px">
+      <div><label>Supabase Project URL</label><input id="sbUrl" placeholder="https://xxxx.supabase.co"></div>
+      <div><label>Supabase anon public key</label><input id="sbKey" placeholder="eyJ..."></div>
+      <div><label>Your login email</label><input id="loginEmail" type="email" placeholder="you@example.com"></div>
+      <div><label>Default nightly rate (RM)</label><input id="defaultRate" type="number" value="650"></div>
+    </div>
+    <div class="actionsrow" style="margin-top:14px"><button class="btn blue" onclick="saveCloudConfig()">Save & Connect</button><button class="btn secondary" onclick="sendMagicLink()">Email Login Link</button><button class="btn secondary" onclick="syncNow()">Sync Now</button><button class="btn danger" onclick="signOut()">Sign Out</button></div>
+    <p class="small">Security: use the Supabase anon/public key only. The included SQL enables Row Level Security so each signed-in user can access only their own bookings.</p>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Backup & restore</h3><div class="actionsrow"><button class="btn secondary" onclick="exportJSON()">Download Backup</button><label class="btn secondary" style="display:inline-block;margin:0;cursor:pointer">Restore Backup<input type="file" accept="application/json" onchange="importJSON(event)" style="display:none"></label></div></div>
+  <div class="card" style="margin-top:14px"><h3>Install on iPhone</h3><p class="small">After this site is hosted, open it in Safari → Share → <b>Add to Home Screen</b>. It will appear like an app.</p></div>
+</section>
+</main>
+<div class="modal" id="modal"><div class="modalbox"><h2 id="modalTitle">Add Booking</h2>
+  <div id="overlapWarning" class="notice warn hidden" style="margin-bottom:12px"></div>
+  <div class="formgrid">
+    <div><label>Guest name</label><input id="fGuest" required></div><div><label>Phone</label><input id="fPhone"></div>
+    <div><label>Check-in</label><input id="fIn" type="date" onchange="checkOverlap()"></div><div><label>Check-out</label><input id="fOut" type="date" onchange="checkOverlap()"></div>
+    <div><label>Guests (pax)</label><input id="fPax" type="number" min="1" value="2"></div><div><label>Source</label><select id="fSource"><option>WhatsApp</option><option>Airbnb</option><option>Booking.com</option><option>TikTok</option><option>Facebook</option><option>Direct</option></select></div>
+    <div><label>Nightly rate (RM)</label><input id="fRate" type="number" value="650"></div><div><label>Deposit received (RM)</label><input id="fDeposit" type="number" value="0"></div>
+    <div><label>Booking status</label><select id="fStatus"><option>Confirmed</option><option>Awaiting Confirmation</option><option>Cancelled</option><option>Closed</option></select></div><div><label>Payment status</label><select id="fPay"><option>Deposit Paid</option><option>Fully Paid</option><option>Not Paid</option></select></div>
+    <div class="full"><label>Notes</label><textarea id="fNotes" placeholder="BBQ requested, early check-in, etc."></textarea></div>
+  </div>
+  <div class="modalactions"><button class="btn secondary" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveBooking()">Save Booking</button></div>
+</div></div>
+<script>
+const LOCAL_KEY='mochiMoonBookingsV2', CONFIG_KEY='mochiMoonCloudConfig', RATE_KEY='mochiRate';
+let bookings=JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]'); let calDate=new Date(); let editing=null; let supabaseClient=null; let currentUser=null;
+const demo=[{id:'demo1',guest:'RXZ Member',phone:'',in:'2026-09-18',out:'2026-09-20',pax:10,source:'Direct',rate:650,deposit:200,status:'Confirmed',pay:'Deposit Paid',notes:''},{id:'demo2',guest:'September Guest',phone:'',in:'2026-09-25',out:'2026-09-26',pax:8,source:'WhatsApp',rate:650,deposit:0,status:'Awaiting Confirmation',pay:'Not Paid',notes:''}];
+if(!bookings.length){bookings=demo;persistLocal()}
+function persistLocal(){localStorage.setItem(LOCAL_KEY,JSON.stringify(bookings));render()}
+function nights(b){return Math.max(0,Math.round((new Date(b.out)-new Date(b.in))/86400000))} function total(b){return nights(b)*Number(b.rate||0)} function balance(b){return Math.max(0,total(b)-Number(b.deposit||0))} function money(n){return 'RM'+Number(n||0).toLocaleString('en-MY',{maximumFractionDigits:0})}
+function esc(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function statusBadge(s){let c=s==='Confirmed'?'confirmed':s==='Awaiting Confirmation'?'pending':s==='Cancelled'?'cancelled':'closed';return `<span class="badge ${c}">${esc(s)}</span>`}
+function render(){document.getElementById('dashMonth').textContent=new Date().toLocaleString('en-MY',{month:'long',year:'numeric'});document.getElementById('confirmedCount').textContent=bookings.filter(b=>b.status==='Confirmed').length;document.getElementById('pendingCount').textContent=bookings.filter(b=>b.status==='Awaiting Confirmation').length;document.getElementById('revenue').textContent=money(bookings.filter(b=>b.status==='Confirmed').reduce((s,b)=>s+total(b),0));document.getElementById('outstanding').textContent=money(bookings.filter(b=>b.status==='Confirmed').reduce((s,b)=>s+balance(b),0));let today=new Date().toISOString().slice(0,10),up=bookings.filter(b=>b.status!=='Cancelled'&&b.out>=today).sort((a,b)=>a.in.localeCompare(b.in)).slice(0,6);document.getElementById('upcoming').innerHTML=up.length?up.map(b=>`<div style="padding:10px 0;border-bottom:1px solid #eee"><b>${esc(b.guest)}</b> · ${b.in} → ${b.out} · ${b.pax} pax · ${statusBadge(b.status)}</div>`).join(''):'No upcoming bookings.';renderBookings();renderPayments();renderCalendar(calDate.getFullYear(),calDate.getMonth())}
+function renderBookings(){let q=(document.getElementById('search')?.value||'').toLowerCase(),sf=document.getElementById('statusFilter')?.value||'';let rows=bookings.filter(b=>(!q||[b.guest,b.phone,b.source].some(x=>String(x||'').toLowerCase().includes(q)))&&(!sf||b.status===sf)).sort((a,b)=>a.in.localeCompare(b.in));document.getElementById('bookingRows').innerHTML=rows.map(b=>`<tr><td><b>${esc(b.guest)}</b></td><td>${b.in}</td><td>${b.out}</td><td>${b.pax}</td><td>${esc(b.source)}</td><td>${money(total(b))}</td><td>${money(balance(b))}</td><td>${statusBadge(b.status)}</td><td><button class="btn secondary" onclick="editBooking('${b.id}')">Edit</button> <button class="btn danger" onclick="deleteBooking('${b.id}')">Delete</button></td></tr>`).join('')}
+function renderPayments(){document.getElementById('paymentRows').innerHTML=bookings.sort((a,b)=>a.in.localeCompare(b.in)).map(b=>`<tr><td>${esc(b.guest)}</td><td>${money(total(b))}</td><td>${money(b.deposit)}</td><td>${money(balance(b))}</td><td>${esc(b.pay)}</td></tr>`).join('')}
+function renderCalendar(y,m){document.getElementById('calTitle').textContent=new Date(y,m,1).toLocaleString('en-MY',{month:'long',year:'numeric'});document.getElementById('calHead').innerHTML=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(x=>`<div style="font-weight:700;padding:6px;color:#718096">${x}</div>`).join('');let first=(new Date(y,m,1).getDay()+6)%7,days=new Date(y,m+1,0).getDate(),cells='';for(let i=0;i<first;i++)cells+='<div></div>';for(let d=1;d<=days;d++){let date=`${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,bs=bookings.filter(b=>b.status!=='Cancelled'&&date>=b.in&&date<b.out);cells+=`<div class="day"><div class="num">${d}</div>${bs.map(b=>`<div class="booking ${b.status==='Awaiting Confirmation'?'pending':b.status==='Closed'?'closed':''}" title="${esc(b.guest)}">${esc(b.guest)}</div>`).join('')}</div>`}document.getElementById('calendarGrid').innerHTML=cells}
+function changeMonth(n){calDate.setMonth(calDate.getMonth()+n);render()} function goToday(){calDate=new Date();render()}
+function openModal(id=null){editing=id;let b=id?bookings.find(x=>String(x.id)===String(id)):null;document.getElementById('modalTitle').textContent=b?'Edit Booking':'Add Booking';fGuest.value=b?.guest||'';fPhone.value=b?.phone||'';fIn.value=b?.in||'';fOut.value=b?.out||'';fPax.value=b?.pax||2;fSource.value=b?.source||'WhatsApp';fRate.value=b?.rate||Number(localStorage.getItem(RATE_KEY)||650);fDeposit.value=b?.deposit||0;fStatus.value=b?.status||'Confirmed';fPay.value=b?.pay||'Deposit Paid';fNotes.value=b?.notes||'';overlapWarning.classList.add('hidden');modal.classList.add('show')}
+function closeModal(){modal.classList.remove('show')}
+function checkOverlap(){let i=fIn.value,o=fOut.value;if(!i||!o){overlapWarning.classList.add('hidden');return}let clashes=bookings.filter(b=>String(b.id)!==String(editing)&&b.status!=='Cancelled'&&i<b.out&&o>b.in);if(clashes.length){overlapWarning.textContent='⚠️ Possible date clash with: '+clashes.map(b=>`${b.guest} (${b.in} → ${b.out})`).join(', ');overlapWarning.classList.remove('hidden')}else overlapWarning.classList.add('hidden')}
+async function saveBooking(){let b={id:editing||crypto.randomUUID(),guest:fGuest.value.trim(),phone:fPhone.value.trim(),in:fIn.value,out:fOut.value,pax:Number(fPax.value),source:fSource.value,rate:Number(fRate.value),deposit:Number(fDeposit.value),status:fStatus.value,pay:fPay.value,notes:fNotes.value.trim()};if(!b.guest||!b.in||!b.out){alert('Please enter guest name, check-in and check-out.');return}if(new Date(b.out)<=new Date(b.in)){alert('Check-out must be after check-in.');return}if(editing)bookings=bookings.map(x=>String(x.id)===String(editing)?b:x);else bookings.push(b);closeModal();persistLocal();await pushBookingToCloud(b)}
+function editBooking(id){openModal(id)} async function deleteBooking(id){if(!confirm('Delete this booking?'))return;bookings=bookings.filter(b=>String(b.id)!==String(id));persistLocal();if(supabaseClient&&currentUser&&!String(id).startsWith('demo'))await supabaseClient.from('bookings').delete().eq('id',id).eq('user_id',currentUser.id)}
+function cloudConfig(){try{return JSON.parse(localStorage.getItem(CONFIG_KEY)||'{}')}catch{return {}}}
+async function initCloud(){let c=cloudConfig();sbUrl.value=c.url||'';sbKey.value=c.key||'';loginEmail.value=c.email||'';defaultRate.value=localStorage.getItem(RATE_KEY)||650;if(!c.url||!c.key){setCloudMsg('Local Mode: data is saved only on this device.','warn');return}try{supabaseClient=window.supabase.createClient(c.url,c.key);let {data:{user}}=await supabaseClient.auth.getUser();currentUser=user||null;updateSyncPill();supabaseClient.auth.onAuthStateChange(async(_event,session)=>{currentUser=session?.user||null;updateSyncPill();if(currentUser)await pullCloud()});if(currentUser)await pullCloud();else setCloudMsg('Cloud connected. Sign in using Email Login Link to sync bookings.','ok')}catch(e){setCloudMsg('Cloud setup error: '+e.message,'err')}}
+function updateSyncPill(){syncPill.textContent=currentUser?'☁️ Synced account':'Local mode'} function setCloudMsg(msg,type=''){cloudMsg.textContent=msg;cloudMsg.className='notice '+type}
+async function saveCloudConfig(){localStorage.setItem(CONFIG_KEY,JSON.stringify({url:sbUrl.value.trim(),key:sbKey.value.trim(),email:loginEmail.value.trim()}));localStorage.setItem(RATE_KEY,defaultRate.value||650);setCloudMsg('Saved. Connecting…');await initCloud()}
+async function sendMagicLink(){if(!supabaseClient){alert('Save your Supabase URL and anon key first.');return}let email=loginEmail.value.trim();if(!email){alert('Enter your email.');return}let {error}=await supabaseClient.auth.signInWithOtp({email,options:{emailRedirectTo:location.href.split('#')[0]}});if(error)setCloudMsg(error.message,'err');else setCloudMsg('Login link sent. Open the email on this phone and tap the link.','ok')}
+async function signOut(){if(supabaseClient)await supabaseClient.auth.signOut();currentUser=null;updateSyncPill();setCloudMsg('Signed out. Local data remains on this device.','warn')}
+function toCloudRow(b){return {id:b.id,user_id:currentUser.id,guest:b.guest,phone:b.phone||'',check_in:b.in,check_out:b.out,pax:b.pax,source:b.source,rate:b.rate,deposit:b.deposit,status:b.status,payment_status:b.pay,notes:b.notes||'',updated_at:new Date().toISOString()}}
+function fromCloudRow(r){return {id:r.id,guest:r.guest,phone:r.phone,in:r.check_in,out:r.check_out,pax:r.pax,source:r.source,rate:Number(r.rate),deposit:Number(r.deposit),status:r.status,pay:r.payment_status,notes:r.notes||''}}
+async function pushBookingToCloud(b){if(!supabaseClient||!currentUser)return;let {error}=await supabaseClient.from('bookings').upsert(toCloudRow(b));if(error)setCloudMsg('Saved locally, but cloud sync failed: '+error.message,'err');else setCloudMsg('Booking saved and synced.','ok')}
+async function pullCloud(){if(!supabaseClient||!currentUser)return;let {data,error}=await supabaseClient.from('bookings').select('*').eq('user_id',currentUser.id).order('check_in');if(error){setCloudMsg('Cloud read failed: '+error.message,'err');return}if(data&&data.length){bookings=data.map(fromCloudRow);persistLocal();setCloudMsg('Cloud sync complete.','ok')}else{let localReal=bookings.filter(b=>!String(b.id).startsWith('demo'));if(localReal.length){let {error:e}=await supabaseClient.from('bookings').upsert(localReal.map(toCloudRow));if(e){setCloudMsg('Could not upload local bookings: '+e.message,'err');return}bookings=localReal;persistLocal()}setCloudMsg('Cloud ready.','ok')}}
+async function syncNow(){if(!currentUser){alert('Sign in first using Email Login Link.');return}await pullCloud()}
+function csvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'} function exportCSV(){let h=['Guest','Phone','Check-in','Check-out','Pax','Source','Rate','Deposit','Total','Balance','Booking Status','Payment Status','Notes'],rows=bookings.map(b=>[b.guest,b.phone,b.in,b.out,b.pax,b.source,b.rate,b.deposit,total(b),balance(b),b.status,b.pay,b.notes]);downloadBlob([h,...rows].map(r=>r.map(csvCell).join(',')).join('\n'),'mochi-moon-bookings.csv','text/csv')}
+function exportJSON(){downloadBlob(JSON.stringify({exported_at:new Date().toISOString(),bookings},null,2),'mochi-moon-backup.json','application/json')} function downloadBlob(content,name,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
+function importJSON(e){let f=e.target.files?.[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result),arr=Array.isArray(x)?x:x.bookings;if(!Array.isArray(arr))throw new Error('Invalid backup');bookings=arr;persistLocal();alert('Backup restored.')}catch(err){alert('Could not restore: '+err.message)}};r.readAsText(f);e.target.value=''}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById(t.dataset.view).classList.add('active');render()});
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+render();initCloud();
+</script>
+</body></html>
