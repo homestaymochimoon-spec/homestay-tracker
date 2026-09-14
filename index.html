@@ -71,6 +71,20 @@ input,select,textarea{padding:11px;border:1px solid var(--line);border-radius:10
     <div class="actionsrow" style="margin-top:14px"><button class="btn blue" onclick="saveCloudConfig()">Save & Connect</button><button class="btn secondary" onclick="sendMagicLink()">Email Login Link</button><button class="btn secondary" onclick="syncNow()">Sync Now</button><button class="btn danger" onclick="signOut()">Sign Out</button></div>
     <p class="small">Security: use the Supabase anon/public key only. The included SQL enables Row Level Security so each signed-in user can access only their own bookings.</p>
   </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Airbnb Calendar Import</h3>
+    <p class="small">Paste your Airbnb iCal (.ics) link below. The app will import reserved or blocked dates into Mochi & Moon. If direct import is blocked by the browser, use the .ics file import button.</p>
+    <div class="settingsgrid" style="margin-top:10px">
+      <div class="full"><label>Airbnb iCal URL</label><input id="airbnbUrl" placeholder="https://www.airbnb.com/calendar/ical/... .ics"></div>
+    </div>
+    <div class="actionsrow" style="margin-top:12px">
+      <button class="btn blue" onclick="importAirbnbFromUrl()">Import Airbnb Calendar</button>
+      <label class="btn secondary" style="display:inline-block;margin:0;cursor:pointer">Import .ics File<input type="file" accept=".ics,text/calendar" onchange="importAirbnbFile(event)" style="display:none"></label>
+    </div>
+    <div id="airbnbMsg" class="small" style="margin-top:10px"></div>
+  </div>
+
   <div class="card" style="margin-top:14px"><h3>Backup & restore</h3><div class="actionsrow"><button class="btn secondary" onclick="exportJSON()">Download Backup</button><label class="btn secondary" style="display:inline-block;margin:0;cursor:pointer">Restore Backup<input type="file" accept="application/json" onchange="importJSON(event)" style="display:none"></label></div></div>
   <div class="card" style="margin-top:14px"><h3>Install on iPhone</h3><p class="small">After this site is hosted, open it in Safari → Share → <b>Add to Home Screen</b>. It will appear like an app.</p></div>
 </section>
@@ -88,7 +102,7 @@ input,select,textarea{padding:11px;border:1px solid var(--line);border-radius:10
   <div class="modalactions"><button class="btn secondary" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveBooking()">Save Booking</button></div>
 </div></div>
 <script>
-const LOCAL_KEY='mochiMoonBookingsV2', CONFIG_KEY='mochiMoonCloudConfig', RATE_KEY='mochiRate';
+const LOCAL_KEY='mochiMoonBookingsV2', CONFIG_KEY='mochiMoonCloudConfig', RATE_KEY='mochiRate', AIRBNB_URL_KEY='mochiAirbnbIcalUrl';
 let bookings=JSON.parse(localStorage.getItem(LOCAL_KEY)||'[]'); let calDate=new Date(); let editing=null; let supabaseClient=null; let currentUser=null;
 const demo=[{id:'demo1',guest:'RXZ Member',phone:'',in:'2026-09-18',out:'2026-09-20',pax:10,source:'Direct',rate:650,deposit:200,status:'Confirmed',pay:'Deposit Paid',notes:''},{id:'demo2',guest:'September Guest',phone:'',in:'2026-09-25',out:'2026-09-26',pax:8,source:'WhatsApp',rate:650,deposit:0,status:'Awaiting Confirmation',pay:'Not Paid',notes:''}];
 if(!bookings.length){bookings=demo;persistLocal()}
@@ -107,7 +121,7 @@ function checkOverlap(){let i=fIn.value,o=fOut.value;if(!i||!o){overlapWarning.c
 async function saveBooking(){let b={id:editing||crypto.randomUUID(),guest:fGuest.value.trim(),phone:fPhone.value.trim(),in:fIn.value,out:fOut.value,pax:Number(fPax.value),source:fSource.value,rate:Number(fRate.value),deposit:Number(fDeposit.value),status:fStatus.value,pay:fPay.value,notes:fNotes.value.trim()};if(!b.guest||!b.in||!b.out){alert('Please enter guest name, check-in and check-out.');return}if(new Date(b.out)<=new Date(b.in)){alert('Check-out must be after check-in.');return}if(editing)bookings=bookings.map(x=>String(x.id)===String(editing)?b:x);else bookings.push(b);closeModal();persistLocal();await pushBookingToCloud(b)}
 function editBooking(id){openModal(id)} async function deleteBooking(id){if(!confirm('Delete this booking?'))return;bookings=bookings.filter(b=>String(b.id)!==String(id));persistLocal();if(supabaseClient&&currentUser&&!String(id).startsWith('demo'))await supabaseClient.from('bookings').delete().eq('id',id).eq('user_id',currentUser.id)}
 function cloudConfig(){try{return JSON.parse(localStorage.getItem(CONFIG_KEY)||'{}')}catch{return {}}}
-async function initCloud(){let c=cloudConfig();sbUrl.value=c.url||'';sbKey.value=c.key||'';loginEmail.value=c.email||'';defaultRate.value=localStorage.getItem(RATE_KEY)||650;if(!c.url||!c.key){setCloudMsg('Local Mode: data is saved only on this device.','warn');return}try{supabaseClient=window.supabase.createClient(c.url,c.key);let {data:{user}}=await supabaseClient.auth.getUser();currentUser=user||null;updateSyncPill();supabaseClient.auth.onAuthStateChange(async(_event,session)=>{currentUser=session?.user||null;updateSyncPill();if(currentUser)await pullCloud()});if(currentUser)await pullCloud();else setCloudMsg('Cloud connected. Sign in using Email Login Link to sync bookings.','ok')}catch(e){setCloudMsg('Cloud setup error: '+e.message,'err')}}
+async function initCloud(){let c=cloudConfig();sbUrl.value=c.url||'';sbKey.value=c.key||'';loginEmail.value=c.email||'';defaultRate.value=localStorage.getItem(RATE_KEY)||650;if(document.getElementById('airbnbUrl'))airbnbUrl.value=localStorage.getItem(AIRBNB_URL_KEY)||'';if(!c.url||!c.key){setCloudMsg('Local Mode: data is saved only on this device.','warn');return}try{supabaseClient=window.supabase.createClient(c.url,c.key);let {data:{user}}=await supabaseClient.auth.getUser();currentUser=user||null;updateSyncPill();supabaseClient.auth.onAuthStateChange(async(_event,session)=>{currentUser=session?.user||null;updateSyncPill();if(currentUser)await pullCloud()});if(currentUser)await pullCloud();else setCloudMsg('Cloud connected. Sign in using Email Login Link to sync bookings.','ok')}catch(e){setCloudMsg('Cloud setup error: '+e.message,'err')}}
 function updateSyncPill(){syncPill.textContent=currentUser?'☁️ Synced account':'Local mode'} function setCloudMsg(msg,type=''){cloudMsg.textContent=msg;cloudMsg.className='notice '+type}
 async function saveCloudConfig(){localStorage.setItem(CONFIG_KEY,JSON.stringify({url:sbUrl.value.trim(),key:sbKey.value.trim(),email:loginEmail.value.trim()}));localStorage.setItem(RATE_KEY,defaultRate.value||650);setCloudMsg('Saved. Connecting…');await initCloud()}
 async function sendMagicLink(){if(!supabaseClient){alert('Save your Supabase URL and anon key first.');return}let email=loginEmail.value.trim();if(!email){alert('Enter your email.');return}let {error}=await supabaseClient.auth.signInWithOtp({email,options:{emailRedirectTo:location.href.split('#')[0]}});if(error)setCloudMsg(error.message,'err');else setCloudMsg('Login link sent. Open the email on this phone and tap the link.','ok')}
@@ -120,6 +134,51 @@ async function syncNow(){if(!currentUser){alert('Sign in first using Email Login
 function csvCell(v){return '"'+String(v??'').replace(/"/g,'""')+'"'} function exportCSV(){let h=['Guest','Phone','Check-in','Check-out','Pax','Source','Rate','Deposit','Total','Balance','Booking Status','Payment Status','Notes'],rows=bookings.map(b=>[b.guest,b.phone,b.in,b.out,b.pax,b.source,b.rate,b.deposit,total(b),balance(b),b.status,b.pay,b.notes]);downloadBlob([h,...rows].map(r=>r.map(csvCell).join(',')).join('\n'),'mochi-moon-bookings.csv','text/csv')}
 function exportJSON(){downloadBlob(JSON.stringify({exported_at:new Date().toISOString(),bookings},null,2),'mochi-moon-backup.json','application/json')} function downloadBlob(content,name,type){let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();URL.revokeObjectURL(a.href)}
 function importJSON(e){let f=e.target.files?.[0];if(!f)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result),arr=Array.isArray(x)?x:x.bookings;if(!Array.isArray(arr))throw new Error('Invalid backup');bookings=arr;persistLocal();alert('Backup restored.')}catch(err){alert('Could not restore: '+err.message)}};r.readAsText(f);e.target.value=''}
+
+function setAirbnbMsg(msg,type=''){let el=document.getElementById('airbnbMsg');if(!el)return;el.textContent=msg;el.style.color=type==='err'?'#9c4d4d':type==='ok'?'#2f6b4f':'#718096'}
+function icalUnescape(s){return String(s||'').replace(/\\n/gi,' ').replace(/\\,/g,',').replace(/\\;/g,';').replace(/\\\\/g,'\\')}
+function parseIcalDate(v){v=String(v||'').trim();let m=v.match(/^(\d{4})(\d{2})(\d{2})/);return m?m[1]+'-'+m[2]+'-'+m[3]:''}
+async function uuidFromText(text){let data=new TextEncoder().encode(String(text));let hash=new Uint8Array(await crypto.subtle.digest('SHA-256',data));hash[6]=(hash[6]&15)|64;hash[8]=(hash[8]&63)|128;let h=[...hash.slice(0,16)].map(b=>b.toString(16).padStart(2,'0')).join('');return h.slice(0,8)+'-'+h.slice(8,12)+'-'+h.slice(12,16)+'-'+h.slice(16,20)+'-'+h.slice(20,32)}
+async function importAirbnbICS(text){
+  let unfolded=String(text||'').replace(/\r\n[ \t]/g,'').replace(/\n[ \t]/g,'');
+  let events=unfolded.split('BEGIN:VEVENT').slice(1).map(x=>x.split('END:VEVENT')[0]);
+  if(!events.length)throw new Error('No calendar events found in this .ics file.');
+  let imported=[],skipped=0;
+  for(let ev of events){
+    let lines=ev.split(/\r?\n/),obj={};
+    for(let line of lines){let i=line.indexOf(':');if(i<0)continue;let key=line.slice(0,i).split(';')[0].toUpperCase(),val=line.slice(i+1);if(!obj[key])obj[key]=val}
+    let start=parseIcalDate(obj.DTSTART),end=parseIcalDate(obj.DTEND);if(!start||!end){skipped++;continue}
+    let summary=icalUnescape(obj.SUMMARY||'Airbnb booking'),uid=obj.UID||summary+'|'+start+'|'+end;
+    let id=await uuidFromText('airbnb|'+uid);
+    if(bookings.some(b=>String(b.id)===id)){skipped++;continue}
+    let isBlocked=/not available|blocked|unavailable/i.test(summary);
+    let b={id,guest:isBlocked?'Airbnb Blocked':(summary||'Airbnb Reservation'),phone:'',in:start,out:end,pax:1,source:'Airbnb',rate:Number(localStorage.getItem(RATE_KEY)||650),deposit:0,status:isBlocked?'Closed':'Confirmed',pay:'Not Paid',notes:'Imported from Airbnb calendar'};
+    bookings.push(b);imported.push(b);
+  }
+  persistLocal();
+  if(supabaseClient&&currentUser&&imported.length){
+    let {error}=await supabaseClient.from('bookings').upsert(imported.map(toCloudRow));
+    if(error)setAirbnbMsg('Imported locally, but cloud sync failed: '+error.message,'err')
+  }
+  return {imported:imported.length,skipped}
+}
+async function importAirbnbFromUrl(){
+  let url=(airbnbUrl.value||'').trim();if(!url){alert('Paste your Airbnb iCal URL first.');return}
+  localStorage.setItem(AIRBNB_URL_KEY,url);setAirbnbMsg('Importing Airbnb calendar…');
+  try{
+    let r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);
+    let txt=await r.text();let x=await importAirbnbICS(txt);
+    setAirbnbMsg('Imported '+x.imported+' new Airbnb event(s). '+x.skipped+' duplicate/invalid event(s) skipped.','ok')
+  }catch(e){
+    setAirbnbMsg('Direct import was blocked by Airbnb/browser. Download the Airbnb .ics file and use “Import .ics File” instead.','err')
+  }
+}
+function importAirbnbFile(e){
+  let f=e.target.files?.[0];if(!f)return;let r=new FileReader();setAirbnbMsg('Reading Airbnb calendar file…');
+  r.onload=async()=>{try{let x=await importAirbnbICS(r.result);setAirbnbMsg('Imported '+x.imported+' new Airbnb event(s). '+x.skipped+' duplicate/invalid event(s) skipped.','ok')}catch(err){setAirbnbMsg('Could not import calendar: '+err.message,'err')}e.target.value=''};
+  r.readAsText(f)
+}
+
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));t.classList.add('active');document.getElementById(t.dataset.view).classList.add('active');render()});
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 render();initCloud();
